@@ -1,0 +1,21 @@
+Wenhao Wu
+wnhwu@ucdavis.edu
+Deptartment of Electrical and Computer Engineering, UC Davis.
+998587583
+01/16/2014
+
+In this assignment I use the 4-th method for computing the mean, SD and median, i.e. I use R to read blocks and use the shell to extract the ArrDelay column.
+I use the frequency table approach to evaluate the median.
+
+Currently the program is designed to be able to handle a series of *.csv.bz2 file in a single directory with column "ArrDelay" in the 15th column. In my test we processed the filde "1990.csv.bz2".
+
+The resulting mean, sample variance and median of ArrDelay are 6.809947, 616.9206 (which means SD is 24.83789) and the median is 2.
+
+To run this code, simply place the file "AnalyzeArrDelay.R" in the same directory containing the files specified above and type the command
+$ Rscript AnalyzeArrDelay.R
+
+The time to complete the computation on "1990.csv.bz2" is
+   user  system elapsed 
+ 47.886   4.596 445.105 
+
+I am running R in VirtualBox with Ubuntu 13.10 hosted in Windows 7 64bit. The amount of RAM for the virtual machine is 2GB and the CPU is Intel(R) Core i7-3612QM 2.10GHz.

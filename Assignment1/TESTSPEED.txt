@@ -1,0 +1,74 @@
+$by.self
+                      self.time self.pct total.time total.pct
+"as.character"             3.26    40.45       3.26     40.45
+"as.integer"               1.30    16.13       1.30     16.13
+"scan"                     1.20    14.89       1.20     14.89
+"table"                    0.96    11.91       4.88     60.55
+"match"                    0.36     4.47       0.36      4.47
+".Call"                    0.32     3.97       0.32      3.97
+"unique.default"           0.14     1.74       0.14      1.74
+"is.na"                    0.08     0.99       0.08      0.99
+"SumFile"                  0.06     0.74       7.96     98.76
+"print.default"            0.06     0.74       0.06      0.74
+"unique"                   0.04     0.50       0.20      2.48
+".External2"               0.04     0.50       0.04      0.50
+"mean.default"             0.04     0.50       0.04      0.50
+"stopifnot"                0.04     0.50       0.04      0.50
+"eval"                     0.02     0.25       8.04     99.75
+"factor"                   0.02     0.25       3.80     47.15
+"["                        0.02     0.25       0.02      0.25
+"lazyLoadDBfetch"          0.02     0.25       0.02      0.25
+"length"                   0.02     0.25       0.02      0.25
+"levels.default"           0.02     0.25       0.02      0.25
+sample.interval=20000      0.02     0.25       0.02      0.25
+"sum"                      0.02     0.25       0.02      0.25
+
+$by.total
+                      total.time total.pct self.time self.pct
+"eval"                      8.04     99.75      0.02     0.25
+"source"                    8.02     99.50      0.00     0.00
+"withVisible"               8.02     99.50      0.00     0.00
+"SumFile"                   7.96     98.76      0.06     0.74
+"table"                     4.88     60.55      0.96    11.91
+"factor"                    3.80     47.15      0.02     0.25
+"as.character"              3.26     40.45      3.26    40.45
+"as.integer"                1.30     16.13      1.30    16.13
+"scan"                      1.20     14.89      1.20    14.89
+"match"                     0.36      4.47      0.36     4.47
+"var"                       0.36      4.47      0.00     0.00
+".Call"                     0.32      3.97      0.32     3.97
+"unique"                    0.20      2.48      0.04     0.50
+"unique.default"            0.14      1.74      0.14     1.74
+"is.na"                     0.08      0.99      0.08     0.99
+"print.default"             0.06      0.74      0.06     0.74
+"plot"                      0.06      0.74      0.00     0.00
+"plot.default"              0.06      0.74      0.00     0.00
+"print"                     0.06      0.74      0.00     0.00
+".External2"                0.04      0.50      0.04     0.50
+"mean.default"              0.04      0.50      0.04     0.50
+"stopifnot"                 0.04      0.50      0.04     0.50
+"intersect"                 0.04      0.50      0.00     0.00
+"mean"                      0.04      0.50      0.00     0.00
+"["                         0.02      0.25      0.02     0.25
+"lazyLoadDBfetch"           0.02      0.25      0.02     0.25
+"length"                    0.02      0.25      0.02     0.25
+"levels.default"            0.02      0.25      0.02     0.25
+sample.interval=20000       0.02      0.25      0.02     0.25
+"sum"                       0.02      0.25      0.02     0.25
+"<Anonymous>"               0.02      0.25      0.00     0.00
+"deparse"                   0.02      0.25      0.00     0.00
+".deparseOpts"              0.02      0.25      0.00     0.00
+"dev.hold"                  0.02      0.25      0.00     0.00
+"e                          0.02      0.25      0.00     0.00
+".External"                 0.02      0.25      0.00     0.00
+"levels"                    0.02      0.25      0.00     0.00
+"localBox"                  0.02      0.25      0.00     0.00
+"match.arg"                 0.02      0.25      0.00     0.00
+"plot.new"                  0.02      0.25      0.00     0.00
+"sort.list"                 0.02      0.25      0.00     0.00
+
+$sample.interval
+[1] 0.02
+
+$sampling.time
+[1] 8.06
