@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <sqlite3.h>
 #include <string.h>
+#include <math.h>
+#include <ctime>
 
 #define MAX_CONTENTLINE 80 // Maximum of each line in the content of the tar file
 #define MAX_FILELINE 2000 // Maximum length of each line in the csv file
@@ -10,35 +12,46 @@
 
 using namespace std;
 
-static int callback(void *NotUsed, int argc, char **argv, char **azColName);
-int GetCountDeli(char *firstLine, char delimiter, char *fieldName1, char *fieldName2);
-char *BuildBatchInsert(int n, const char *batch, int maxLenEntry);
+static int callback(void *singleValue, int argc, char **argv, char **azColName); //  return a single value from sqlite3 command
+int GetCountDeli(char *firstLine, char delimiter, char *fieldName1, char *fieldName2); // Function used to count the number of delimiters in front of the desired field
+char *BuildBatchInsert(int n, const int *batch, int maxLenEntry); // return a sqlite3 insert command string to insert n values from batch
 
 int main()
 {
-	int countFile = 0;
-	FILE *contentStream = NULL;
+	int countFile = 0; // Number of files processed
+	FILE *contentStream = NULL; // stream to read the content of *.csv files in the data directory
 	char lineContent[MAX_CONTENTLINE]; // char array for one line in the content of the .tar file
 	char cmdContent[] = "find ../Data -type f -iname \"*.csv\" "; // Shell command to extract the content from the tar file
 
-	FILE *fileStream = NULL;
+	FILE *fileStream = NULL; // stream to read each *.csv file
 	char lineFile[MAX_FILELINE]; // char array for one line in the .csv file
-
 	char fieldName1[] = "ArrDelay", fieldName2[] = "ARR_DELAY"; // The 2 possible field names
-
 
 	sqlite3 *db;
 	int rc;
 	char *zErrMsg = NULL;
-	char sqlCreateTable[] = "CREATE TABLE FLIGHTINFO(\n	ID INTEGER PRIMARY KEY AUTOINCREMENT, \n ARRDELAY FLOAT NOT NULL);";
-	char *sqlInsert= NULL ;
-	char sqlDropTable[] = "DROP TABLE FLIGHTINFO;";
-	char sqlTemp[] = "INSERT INTO FLIGHTINFO(ARRDELAY) VALUES\n(-5.00;";
-	int maxLenEntry = 12;
-	int maxLenBatch = 50;
-	char *batch = new char((maxLenEntry + 1) * maxLenBatch);
-	int countBatch = 0;
+	char sqlCreateTable[] = "CREATE TABLE FLIGHTINFO(\n	ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, \n ARRDELAY INTEGER NOT NULL);";
+	char *sqlInsert= NULL ; //batch inserting sql command
+	char sqlAvg[] = "SELECT AVG(ARRDELAY)\nFROM FLIGHTINFO;"; // sql command to compute mean
+	char sqlAvgSqr[] = "SELECT AVG(ARRDELAY * ARRDELAY)\nFROM FLIGHTINFO;"; // sql command to compute mean square
+	char sqlMedian[] = "SELECT AVG(ARRDELAY)\n"\
+					   "FROM (SELECT ARRDELAY\n"\
+					         "FROM FLIGHTINFO\n"\
+					         "ORDER BY ARRDELAY\n"\
+					         "LIMIT 2 - (SELECT COUNT(*) FROM FLIGHTINFO) % 2\n"\
+					         "OFFSET (SELECT (COUNT(*) - 1) / 2\n"\
+					         "FROM FLIGHTINFO))"; // sql command to compute median
 
+	char sqlDropTable[] = "DROP TABLE FLIGHTINFO;"; // sql command to drop table
+	int maxLenEntry = 6; // Maximum length of the string corresponding to each ArrDelay
+	int maxLenBatch = 500; // Max number of records to insert in each batch. In my computer, 1000 won't work.
+	int *batch = new int[maxLenBatch]; // Array to store the batch of ArrDelay to be inserted
+	int countBatch = 0; // Number of batches inserted in current file
+
+	clock_t start;
+	double t1, t2;
+
+	/* create a database */
 	rc = sqlite3_open("flightInfoTemp.db", &db);
 	if(rc != 0)
 	{
@@ -50,8 +63,8 @@ int main()
 		cout << "Database created!" << endl;
 	}
 
-
-	rc = sqlite3_exec(db, sqlCreateTable, callback, 0, &zErrMsg);
+	/* Create a table */
+	rc = sqlite3_exec(db, sqlCreateTable, NULL, 0, &zErrMsg);
 	if( rc != SQLITE_OK )
 	{
 		cerr << "SQL error: " << zErrMsg << endl;
@@ -68,6 +81,8 @@ int main()
 		cout<<"Cannot find .csv files!"<<endl;
 		return 1;
 	}
+	start = clock();
+	t1 = start;
 	while(fgets(lineContent, MAX_CONTENTLINE, contentStream) != NULL) //For each csv file
 	{
 		countBatch = 0;
@@ -129,22 +144,22 @@ int main()
 						{
 
 							indEntry++;
-							strcpy(batch + (indEntry - 1)* (maxLenEntry + 1), ptrArrDelay);
+							batch[indEntry - 1] = atoi(ptrArrDelay); // add the ArrDelay to the batch
 
-							if (indEntry == maxLenBatch)
+							if (indEntry == maxLenBatch) // When the batch is full
 							{
 								countBatch++ ;
-								sqlInsert = BuildBatchInsert(maxLenBatch, batch, maxLenEntry);
-								cout << sqlInsert << endl;
-								rc = sqlite3_exec(db, sqlInsert, NULL, NULL, &zErrMsg);
+								sqlInsert = BuildBatchInsert(maxLenBatch, batch, maxLenEntry); // Build the batch inserting command
+								//cout << sqlInsert << endl;
+								rc = sqlite3_exec(db, sqlInsert, NULL, 0, &zErrMsg); // Insert the batch
 								if( rc != SQLITE_OK )
 								{
 									cerr << "   " << countLine<<" SQL error: " << zErrMsg << endl;
 									sqlite3_free(zErrMsg);
 								}
 								indEntry = 0;
-								cout << "   Batch " << countBatch << " inserted." << endl;
-								delete sqlInsert;
+								//cout << "   Batch " << countBatch << " inserted." << endl;
+								delete [] sqlInsert;
 							}
 						}
 						break;
@@ -153,26 +168,74 @@ int main()
 				i++;
 			}
 		}
-		if (indEntry > 0)
+		if (indEntry > 0) // When the file scanned to the bottom, insert the rest of the record in the batch to the table
 		{
-			sqlInsert = BuildBatchInsert(indEntry, batch, maxLenEntry);
-			//cout << countLine << endl;
-			cout << sqlInsert << endl;
+			countBatch++ ;
+			sqlInsert = BuildBatchInsert(indEntry, batch, maxLenEntry); // Build the batch inserting command
+			//cout << sqlInsert << endl;
 
-			rc = sqlite3_exec(db, sqlInsert, NULL, NULL, &zErrMsg);
+			rc = sqlite3_exec(db, sqlInsert, NULL, 0, &zErrMsg); // Insert the batch
 			if( rc != SQLITE_OK )
 			{
 				cerr << "   " << countLine<<" SQL error: " << zErrMsg << endl;
 				sqlite3_free(zErrMsg);
 			}
-			indEntry = 0;
+			//cout << "   Batch " << countBatch << " inserted." << endl;
+			delete [] sqlInsert;
 		}
+
+		t2 = clock();
+
+		cout << "   " << countBatch << " batches of size " << maxLenBatch << " inserted." << endl;
+		cout << "   " << "Elapsed time is: " << (t2 - t1) / (double) CLOCKS_PER_SEC << endl;
+		t1 = t2;
 	}
 	pclose(contentStream);
 
-	delete batch;
+	delete [] batch;
 
-	rc = sqlite3_exec(db, sqlDropTable, callback, 0, &zErrMsg);
+	/* Evaluate the mean, variance and the median */
+	cout << "*****************************************" << endl;
+	cout << countFile << " files processed, " << endl;
+	double mean = 0;
+	rc = sqlite3_exec(db, sqlAvg, callback, (void *)&mean, &zErrMsg);
+	if( rc != SQLITE_OK )
+	{
+		cerr << "SQL error: " << zErrMsg << endl;
+		sqlite3_free(zErrMsg);
+	}
+	else
+	{
+		cout << "Mean value is: " << mean << endl;
+	}
+
+	double meanSqr = 0;
+	rc = sqlite3_exec(db, sqlAvgSqr, callback, (void *)&meanSqr, &zErrMsg);
+	if( rc != SQLITE_OK )
+	{
+		cerr << "SQL error: " << zErrMsg << endl;
+		sqlite3_free(zErrMsg);
+	}
+	else
+	{
+		cout << "Standard deviation is: " << sqrt(meanSqr - mean * mean) << endl;
+	}
+
+	double median = 0;
+	rc = sqlite3_exec(db, sqlMedian, callback, (void *)&median, &zErrMsg);
+	if( rc != SQLITE_OK )
+	{
+		cerr << "SQL error: " << zErrMsg << endl;
+		sqlite3_free(zErrMsg);
+	}
+	else
+	{
+		cout << "Median is: " << median << endl;
+	}
+
+	cout << "Total elased time is: " << (t2 - start) / (double) CLOCKS_PER_SEC << endl;
+
+	rc = sqlite3_exec(db, sqlDropTable, NULL, 0, &zErrMsg);
 	if( rc != SQLITE_OK )
 	{
 		cerr << "SQL error: " << zErrMsg << endl;
@@ -187,14 +250,10 @@ int main()
 	return(0);
 }
 
-static int callback(void *NotUsed, int argc, char **argv, char **azColName)
+static int callback(void *singleValue, int argc, char **argv, char **azColName)
 {
-   int i;
-   for(i=0; i<argc; i++)
-   {
-	   cout << azColName[i] << " = " << (argv[i] ? argv[i] : "NULL") << endl;
-   }
-   return 0;
+	*((double *)singleValue) = atof(argv[0]);
+	return 0;
 }
 
 int GetCountDeli(char *firstLine, char delimiter, char *fieldName1, char *fieldName2)
@@ -218,9 +277,11 @@ int GetCountDeli(char *firstLine, char delimiter, char *fieldName1, char *fieldN
 	return countDeli;
 }
 
-char *BuildBatchInsert(int n, const char *batch, int maxLenEntry)
+/* Here we make use of this feature coming with sqlite 3.7.11+ to insert a batch of multiple records in one command,
+huge performance gain! */
+char *BuildBatchInsert(int n, const int *batch, int maxLenEntry)
 {
-	char *sqlBatchInsert = new char(40 + n * (4 + maxLenEntry));
+	char *sqlBatchInsert = new char[40 + n * (4 + maxLenEntry)];
 	int lenEntry = 0;
 	char* lineHead = NULL;
 
@@ -230,8 +291,7 @@ char *BuildBatchInsert(int n, const char *batch, int maxLenEntry)
 	for (int i = 0; i < n; i++)
 	{
 		*lineHead = '(';
-		strcpy(lineHead + 1, batch + i * (maxLenEntry + 1));
-		lenEntry = strlen(batch + i * (maxLenEntry + 1));
+		lenEntry = sprintf(lineHead + 1, "%d", batch[i]);
 		strcpy(lineHead + 1 + lenEntry, "),\n");
 		lineHead += (lenEntry + 4);
 	}
