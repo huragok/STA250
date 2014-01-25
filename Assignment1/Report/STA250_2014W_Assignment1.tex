@@ -105,14 +105,18 @@ I have posted a brief analysis on~\cite{ErrorAnalysis} based on graph theory and
 Also note we actually can evaluate the mean and the variance using the merged histogram so it makes little sense to use Welford method for our problem.
 
 \section{Fast sampling method in c++}
-Although the Welford method implemented in R and BASH is sounded theoretically, the actual data is more complex so that we need to be able to 
+Although the Welford method implemented in R and BASH is sounded theoretically, the actual data is more complex so that we need to be able to
 \begin{itemize}
     \item Identify the different column numbers of the arrival delay data according to various possible names ``ArrDelay'' or ``ARR\_DELAY'';
     \item Customize the cut method so that it can handle delimiters enclosed in quotes.
 \end{itemize}
 We decided to implement this method purely in c++ since speed is critical especially when we are processing the data files line-by-line. In terms of the algorithm, we decide to sample a small portion of the original data, construct the histogram and then evaluate the mean, SD and median with it.
 \\\\
-The main design focus is to design the histogram class. Since we do not want to make much assumption on the field of arrival delay and we do not want to waste a lot of  memory, we decided to implement the histogram with two list links in which each node contains a unique arrival delay value and its frequency. The two list links contains all non-negative/negative numbers and are increasingly/decreasingly ordered, respectively. Since we expect higher frequency for arrival delays with smaller absolute value, these double linked-list structure will significantly increase the speed of linear indexing to add a new category or increase the frequency of an existing frequency by one.
+The main design focus is to design the histogram class. Since we need to insert each record to the histogram, it is very important to minimize the indexing time. The fastest approach, of course, is to use a Hash table that could cover the entire range of the arrival delay. However, since both ends of the histogram tend to be sparse, extremely large or small arrival delay values may not appear consecutively in the histogram. Consequently, implementing such a Hash table would require a a priori assumption of the extreme value of the arrival delay and result in a waste of memory.
+\\\\
+Since we do not want to make any assumption on the field of arrival delay and we do not want to waste a lot of  memory, we decided to implement the histogram with two list links in which each node contains a unique arrival delay value and its frequency. The two list links contains all non-negative/negative numbers and are increasingly/decreasingly ordered, respectively. Since we expect higher frequency for arrival delays with smaller absolute value, these double linked-list structure will significantly increase the speed of linear indexing to add a new category or increase the frequency of an existing frequency by one.
+\\\\
+A better way to design the histogram is by making an assumption of the range in which the histogram is not sparse, and implement a chained Hash table with linked list~\cite{ChainedHash}. In this way, the middle, non-sparse part of the histogram are stored in the Hash table and can be indexed directly, while the extreme, sparse part of the histogram are stored in the linked list at both ends of the hash table and need to be indexed linearly. As a result, in most of the time the indexing is a direct hit and the Hash table will not cause a lot of waste in memory. This design will strike a balance between indexing speed and the memory usage efficiency.
 \\\\
 Unfortunately, since I do not have enough disk space on my virtual machine I cannot run a test on the complete data set. Nevertheless, an initial test on a subset of 11 *.csv files with sampling probability of 0.0001 shows that it evaluated all three values really fast~\cite{FastSample} (Note it seems that the clock frequency on my virtue machine is wrong so the actual time is not the same as the result given by the program).
 
@@ -124,7 +128,7 @@ The SQL commands to compute mean and standard deviation are pretty simple. To co
 \begin{lstlisting}
 SELECT AVG(ARRDELAY)
 FROM (
-      SELECT ARRDELAY 
+      SELECT ARRDELAY
       FROM FLIGHTINFO
       ORDER BY ARRDELAY
       LIMIT 2 - (SELECT COUNT(*) FROM FLIGHTINFO) % 2
