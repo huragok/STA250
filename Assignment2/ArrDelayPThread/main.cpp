@@ -16,7 +16,7 @@ using namespace std;
 #define MAX_COUNT 4 // Maximum length of the number of files
 #define MAX_CONTENTLINE 80 // Maximum of each line in the content of the tar file
 #define MAX_FILELINE 2000 // Maximum length of each line in the csv file
-#define PROBSAMPLE 0.00001 // Each line is sampled with this probability
+#define PROBSAMPLE 0.0002 // Each line is sampled with this probability
 #define DELIMITER ',' //
 #define NUM_THREADS     4
 

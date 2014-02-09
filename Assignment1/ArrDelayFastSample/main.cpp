@@ -6,13 +6,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctime>
+#include <sys/time.h>
 
 
 #include "hist.h"
 
 #define MAX_CONTENTLINE 80 // Maximum of each line in the content of the tar file
 #define MAX_FILELINE 2000 // Maximum length of each line in the csv file
-#define PROBSAMPLE 0.0001 // Each line is sampled with this probability
+#define PROBSAMPLE 0.0002 // Each line is sampled with this probability
 #define DELIMITER ',' //
 
 using namespace std;
@@ -30,11 +31,14 @@ int main()
 	default_random_engine generator; // Need to use the g++ compiler option -std=gnu++11. My compiler is g++ 4.8.1
 	bernoulli_distribution distribution(PROBSAMPLE);
 	hist freqTable; // Frequency table
-	clock_t start;
-	double t1, t2;
 
-	start = clock();
-	t1 = start;
+	struct timespec start, finish;
+	double elapsed;
+	int startCPU,finishCPU;
+	double elapsedCPU;
+
+	clock_gettime(CLOCK_MONOTONIC, &start);
+	startCPU = clock();
 
 	if((contentStream = popen(cmdContent, "r")) == NULL) //List the filenames in the tar file
 	{
@@ -103,7 +107,7 @@ int main()
 					    else if(indDeli == countDeli + 1)
 					    {
 					    	lineFile[i] = '\0';  //changing line.
-					    	if (strcmp(ptrArrDelay, "NA")) //If the content is not "NA"
+					    	if (strcmp(ptrArrDelay, "NA")   && ptrArrDelay != (lineFile + i)) //If the content is not "NA"
 					    	{
 					    		countSample++;
 					    		int arrDelay = atoi(ptrArrDelay);
@@ -119,12 +123,6 @@ int main()
 		}
 
 		fclose(fileStream);
-
-		t2 = clock();
-
-		cout << "   " << countSample << "/" << countLine << " lines sampled" << endl;
-		cout << "   " << "Elapsed time is: " << (t2 - t1) / (double) CLOCKS_PER_SEC << endl;
-		t1 = t2;
 	}
 
 	pclose(contentStream);
@@ -133,7 +131,12 @@ int main()
 	double stdev = freqTable.stdev();
 	int median = freqTable.median();
 
-	t2 = clock();
+	clock_gettime(CLOCK_MONOTONIC, &finish);
+	finishCPU = clock();
+
+	elapsed = (finish.tv_sec - start.tv_sec);
+	elapsed += (finish.tv_nsec - start.tv_nsec) / 1000000000.0;
+	elapsedCPU = (double)(finishCPU - startCPU) / CLOCKS_PER_SEC;
 
 	cout << "*****************************************" << endl;
 	cout << countFile << " files processed, " << endl;
@@ -141,7 +144,9 @@ int main()
 	cout << "Mean value is: " << mean << endl;
 	cout << "Standard deviation is: " << stdev << endl;
 	cout << "Median is: " << median << endl;
-	cout << "Total elased time is: " << (t2 - start) / (double) CLOCKS_PER_SEC << endl;
+	cout << "Wall-clock time is: " << elapsed <<endl;
+	cout << "CPU time is:" << elapsedCPU << endl;
+
 	return(0);
 }
 
